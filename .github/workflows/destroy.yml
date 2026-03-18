@@ -5,6 +5,9 @@ on:
 
 env:
   AWS_REGION: us-west-2
+  CLUSTER_NAME: ecommerce-eks
+  TF_STATE_BUCKET_PREFIX: ecommerce-tf-state
+  TF_LOCK_TABLE: ecommerce-terraform-locks
 
 jobs:
   destroy:
@@ -21,11 +24,36 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
+      - name: Resolve backend names
+        id: backend
+        run: |
+          ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+          BUCKET_NAME="${TF_STATE_BUCKET_PREFIX}-${ACCOUNT_ID}-${AWS_REGION}"
+          echo "bucket=$BUCKET_NAME" >> "$GITHUB_OUTPUT"
+          echo "key=terraform/${CLUSTER_NAME}.tfstate" >> "$GITHUB_OUTPUT"
+
+      - name: Ensure Terraform state bucket exists
+        env:
+          BUCKET_NAME: ${{ steps.backend.outputs.bucket }}
+        run: |
+          if ! aws s3api head-bucket --bucket "$BUCKET_NAME" 2>/dev/null; then
+            echo "Terraform state bucket $BUCKET_NAME does not exist."
+            exit 1
+          fi
+
+      - name: Ensure Terraform lock table exists
+        run: |
+          if ! aws dynamodb describe-table --table-name "$TF_LOCK_TABLE" --region "$AWS_REGION" >/dev/null 2>&1; then
+            echo "Terraform lock table $TF_LOCK_TABLE does not exist."
+            exit 1
+          fi
+
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
 
       - name: Terraform Init
-        run: terraform -chdir=terraform init
+        run: |
+          terraform -chdir=terraform init             -backend-config="bucket=${{ steps.backend.outputs.bucket }}"             -backend-config="key=${{ steps.backend.outputs.key }}"             -backend-config="region=${{ env.AWS_REGION }}"             -backend-config="dynamodb_table=${{ env.TF_LOCK_TABLE }}"             -backend-config="encrypt=true"
 
       - name: Terraform Destroy
         run: terraform -chdir=terraform destroy -auto-approve
