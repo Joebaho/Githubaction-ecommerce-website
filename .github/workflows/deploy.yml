@@ -1,0 +1,68 @@
+name: Deploy
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+env:
+  AWS_REGION: us-west-2
+  CLUSTER_NAME: ecommerce-eks
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v4
+
+      - name: Terraform Init
+        run: terraform -chdir=terraform init
+
+      - name: Terraform Apply
+        run: terraform -chdir=terraform apply -auto-approve
+
+      - name: Fetch Terraform outputs
+        id: tf
+        run: |
+          echo "repository=$(terraform -chdir=terraform output -raw ecr_repository_url)" >> "$GITHUB_OUTPUT"
+          echo "cluster=$(terraform -chdir=terraform output -raw cluster_name)" >> "$GITHUB_OUTPUT"
+
+      - name: Login to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and push image
+        env:
+          ECR_REPOSITORY: ${{ steps.tf.outputs.repository }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          docker build -t "$ECR_REPOSITORY:$IMAGE_TAG" -t "$ECR_REPOSITORY:latest" .
+          docker push "$ECR_REPOSITORY:$IMAGE_TAG"
+          docker push "$ECR_REPOSITORY:latest"
+
+      - name: Configure kubeconfig
+        run: aws eks update-kubeconfig --name "${{ steps.tf.outputs.cluster }}" --region "${{ env.AWS_REGION }}"
+
+      - name: Deploy to Kubernetes
+        env:
+          IMAGE_URI: ${{ steps.tf.outputs.repository }}:${{ github.sha }}
+        run: |
+          kubectl apply -f k8s/namespace.yaml
+          sed "s|IMAGE_URI|$IMAGE_URI|g" k8s/deployment.yaml | kubectl apply -f -
+          kubectl apply -f k8s/service.yaml
+          kubectl rollout status deployment/ecommerce -n webapps --timeout=180s

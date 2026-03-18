@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>E-Commerce Store</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --bg: #f6f1e8;
+        --card: #fffdf8;
+        --text: #172121;
+        --muted: #5f6b6d;
+        --accent: #d96c3d;
+        --accent-dark: #9b3d1f;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        font-family: Georgia, "Times New Roman", serif;
+        color: var(--text);
+        background:
+          radial-gradient(circle at top, rgba(217, 108, 61, 0.18), transparent 30%),
+          linear-gradient(180deg, #fffaf2 0%, var(--bg) 100%);
+      }
+
+      .hero {
+        max-width: 1100px;
+        margin: 0 auto;
+        padding: 72px 24px 40px;
+      }
+
+      .eyebrow {
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+        color: var(--accent-dark);
+        font-size: 0.8rem;
+      }
+
+      h1 {
+        font-size: clamp(2.8rem, 7vw, 5.6rem);
+        line-height: 0.95;
+        margin: 12px 0 20px;
+        max-width: 720px;
+      }
+
+      p {
+        max-width: 620px;
+        color: var(--muted);
+        font-size: 1.05rem;
+        line-height: 1.7;
+      }
+
+      .grid {
+        max-width: 1100px;
+        margin: 0 auto;
+        padding: 12px 24px 72px;
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 20px;
+      }
+
+      .card {
+        background: var(--card);
+        border: 1px solid rgba(23, 33, 33, 0.08);
+        border-radius: 20px;
+        padding: 24px;
+        box-shadow: 0 20px 50px rgba(23, 33, 33, 0.06);
+      }
+
+      .card h2 {
+        margin: 0 0 10px;
+        font-size: 1.3rem;
+      }
+
+      .price {
+        font-weight: 700;
+        color: var(--accent-dark);
+      }
+    </style>
+  </head>
+  <body>
+    <section class="hero">
+      <div class="eyebrow">AWS EKS Deployment</div>
+      <h1>Modern storefront, shipped by GitHub Actions.</h1>
+      <p>
+        This sample site is packaged with Docker, pushed to Amazon ECR, and deployed
+        to Amazon EKS through the repository workflow.
+      </p>
+    </section>
+
+    <section class="grid">
+      <article class="card">
+        <h2>Canvas Weekender</h2>
+        <p>Minimal travel bag with reinforced stitching and a weather-ready shell.</p>
+        <div class="price">$89</div>
+      </article>
+      <article class="card">
+        <h2>Stoneware Set</h2>
+        <p>Neutral ceramic collection designed for everyday dining and display.</p>
+        <div class="price">$64</div>
+      </article>
+      <article class="card">
+        <h2>Desk Lamp</h2>
+        <p>Soft brass finish with warm ambient lighting for focused evening work.</p>
+        <div class="price">$72</div>
+      </article>
+    </section>
+  </body>
+</html>
