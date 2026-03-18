@@ -73,6 +73,12 @@ jobs:
           if aws ecr describe-repositories --repository-names ecommerce --region "${AWS_REGION}" >/dev/null 2>&1; then
             terraform -chdir=terraform import aws_ecr_repository.app ecommerce || true
           fi
+          if aws eks describe-cluster --name "${CLUSTER_NAME}" --region "${AWS_REGION}" >/dev/null 2>&1; then
+            terraform -chdir=terraform import aws_eks_cluster.main "${CLUSTER_NAME}" || true
+          fi
+          if aws eks describe-nodegroup --cluster-name "${CLUSTER_NAME}" --nodegroup-name main --region "${AWS_REGION}" >/dev/null 2>&1; then
+            terraform -chdir=terraform import aws_eks_node_group.main "${CLUSTER_NAME}:main" || true
+          fi
 
       - name: Terraform Apply
         run: terraform -chdir=terraform apply -auto-approve
