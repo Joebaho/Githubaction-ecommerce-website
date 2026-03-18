@@ -6,6 +6,10 @@ on:
       - main
   workflow_dispatch:
 
+concurrency:
+  group: ecommerce-infra
+  cancel-in-progress: false
+
 env:
   AWS_REGION: us-west-2
   CLUSTER_NAME: ecommerce-eks
@@ -62,22 +66,36 @@ jobs:
         run: |
           terraform -chdir=terraform init             -backend-config="bucket=${{ steps.backend.outputs.bucket }}"             -backend-config="key=${{ steps.backend.outputs.key }}"             -backend-config="region=${{ env.AWS_REGION }}"             -backend-config="dynamodb_table=${{ env.TF_LOCK_TABLE }}"             -backend-config="encrypt=true"
 
-      - name: Import existing AWS resources into Terraform state
+      - name: Fail if remote Terraform state is not empty
         run: |
+          if terraform -chdir=terraform state list >/tmp/tf_state_list.txt 2>/dev/null && [ -s /tmp/tf_state_list.txt ]; then
+            echo "Remote Terraform state already contains resources. Run destroy successfully or clear the state before a clean relaunch."
+            cat /tmp/tf_state_list.txt
+            exit 1
+          fi
+
+      - name: Fail if conflicting AWS resources already exist
+        run: |
+          FAILED=0
           if aws iam get-role --role-name "${CLUSTER_NAME}-cluster-role" >/dev/null 2>&1; then
-            terraform -chdir=terraform import aws_iam_role.eks_cluster "${CLUSTER_NAME}-cluster-role" || true
+            echo "IAM role ${CLUSTER_NAME}-cluster-role already exists. Remove it before relaunching."
+            FAILED=1
           fi
           if aws iam get-role --role-name "${CLUSTER_NAME}-nodes-role" >/dev/null 2>&1; then
-            terraform -chdir=terraform import aws_iam_role.eks_nodes "${CLUSTER_NAME}-nodes-role" || true
+            echo "IAM role ${CLUSTER_NAME}-nodes-role already exists. Remove it before relaunching."
+            FAILED=1
           fi
           if aws ecr describe-repositories --repository-names ecommerce --region "${AWS_REGION}" >/dev/null 2>&1; then
-            terraform -chdir=terraform import aws_ecr_repository.app ecommerce || true
+            echo "ECR repository ecommerce already exists. Remove it before relaunching."
+            FAILED=1
           fi
           if aws eks describe-cluster --name "${CLUSTER_NAME}" --region "${AWS_REGION}" >/dev/null 2>&1; then
-            terraform -chdir=terraform import aws_eks_cluster.main "${CLUSTER_NAME}" || true
+            echo "EKS cluster ${CLUSTER_NAME} already exists. Remove it before relaunching."
+            FAILED=1
           fi
-          if aws eks describe-nodegroup --cluster-name "${CLUSTER_NAME}" --nodegroup-name main --region "${AWS_REGION}" >/dev/null 2>&1; then
-            terraform -chdir=terraform import aws_eks_node_group.main "${CLUSTER_NAME}:main" || true
+          if [ "$FAILED" -ne 0 ]; then
+            echo "Conflicting AWS resources were found. Clean them up, then rerun deploy."
+            exit 1
           fi
 
       - name: Terraform Apply

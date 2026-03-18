@@ -3,6 +3,10 @@ name: Destroy
 on:
   workflow_dispatch:
 
+concurrency:
+  group: ecommerce-infra
+  cancel-in-progress: false
+
 env:
   AWS_REGION: us-west-2
   CLUSTER_NAME: ecommerce-eks

@@ -50,7 +50,7 @@ It also needs permission to manage the Terraform state bucket and DynamoDB lock 
 
 ## Deployment flow
 
-The deploy workflow runs on pushes to `main` and on manual dispatch.
+The deploy workflow runs on pushes to `main` and on manual dispatch. It now fails fast if AWS still contains resources from an older run with the same names.
 
 1. Configure AWS credentials
 2. Create or reuse an S3 bucket and DynamoDB table for Terraform state
@@ -86,3 +86,5 @@ terraform -chdir=terraform destroy
 - The EKS cluster name is `ecommerce-eks`
 - The website content served by Nginx is in `site/index.html`
 - GitHub Actions stores Terraform state in S3 and uses DynamoDB for state locking
+- Relaunch from GitHub Actions only after removing any old IAM roles, ECR repository, and EKS cluster with the same names
+- For a true clean relaunch, the remote Terraform state must also be empty or previously destroyed
