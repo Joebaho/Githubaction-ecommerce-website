@@ -62,6 +62,18 @@ jobs:
         run: |
           terraform -chdir=terraform init             -backend-config="bucket=${{ steps.backend.outputs.bucket }}"             -backend-config="key=${{ steps.backend.outputs.key }}"             -backend-config="region=${{ env.AWS_REGION }}"             -backend-config="dynamodb_table=${{ env.TF_LOCK_TABLE }}"             -backend-config="encrypt=true"
 
+      - name: Import existing AWS resources into Terraform state
+        run: |
+          if aws iam get-role --role-name "${CLUSTER_NAME}-cluster-role" >/dev/null 2>&1; then
+            terraform -chdir=terraform import aws_iam_role.eks_cluster "${CLUSTER_NAME}-cluster-role" || true
+          fi
+          if aws iam get-role --role-name "${CLUSTER_NAME}-nodes-role" >/dev/null 2>&1; then
+            terraform -chdir=terraform import aws_iam_role.eks_nodes "${CLUSTER_NAME}-nodes-role" || true
+          fi
+          if aws ecr describe-repositories --repository-names ecommerce --region "${AWS_REGION}" >/dev/null 2>&1; then
+            terraform -chdir=terraform import aws_ecr_repository.app ecommerce || true
+          fi
+
       - name: Terraform Apply
         run: terraform -chdir=terraform apply -auto-approve
 
